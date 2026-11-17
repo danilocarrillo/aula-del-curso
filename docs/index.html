@@ -122,6 +122,12 @@ footer.prueba label { display: flex; flex-direction: column; gap: 4px; color: va
 @media (prefers-reduced-motion: no-preference) { .btn, .item { transition: filter .15s; } .btn:hover:not([disabled]) { filter: brightness(1.08); } }
 
 .error { background: var(--malf); color: var(--mal); border-radius: 10px; padding: 12px 14px; font-weight: 500; }
+.oculto { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }
+label.btn { display: inline-block; text-align: center; } .oculto:focus-visible + .x, label.btn:focus-within { outline: 3px solid var(--acento); outline-offset: 2px; }
+.archivos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.archivos li { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; border: 1px solid var(--linea); border-radius: 10px; padding: 10px 12px; }
+.arch-n { flex: 1 1 160px; min-width: 0; overflow-wrap: anywhere; font-size: 15px; } .arch-n small { display: block; color: var(--suave); }
+.vistas-arch { display: flex; flex-direction: column; gap: 10px; } .vistas-arch img { max-width: 100%; height: auto; border: 1px solid var(--linea); border-radius: 8px; }
 #aviso:empty { display: none; } #aviso { margin-bottom: 0; }
 body.ocupado { cursor: progress; } body.ocupado .btn { opacity: .6; pointer-events: none; }
 html, body { margin: 0; }

@@ -72,15 +72,18 @@ var Reglas = (function () {
   function notaConAtraso(totalRubrica, a) { return a.cero ? 0 : Math.max(0, totalRubrica - a.descuento); }
 
   function comprobarResena(e, limiteMs) {
-    var n = contarPalabras(e.texto), txt = normalizar(e.texto), a = atraso(e.entregadaMs, limiteMs, e.prorroga);
+    var n = contarPalabras(e.texto), txt = normalizar(e.texto), a = atraso(e.entregadaMs, limiteMs, e.prorroga), na = e.archivos || 0;
+    var solo = n === 0 && na > 0;                                        // la entrega está en los archivos: no se puede contar ni buscar
     var faltan = CFG.partes.filter(function (p) { return txt.indexOf(p.busca) < 0; }).map(function (p) { return p.t; });
     var decl = e.ia && (e.ia.uso === 'no' || (e.ia.uso === 'si' && (e.ia.detalle || '').trim().length > 2));
-    return [
-      { k: 'extension', t: 'Extensión', ok: n >= CFG.resena.min && n <= CFG.resena.max, d: n + ' palabras (se piden ' + CFG.resena.min + ' a ' + CFG.resena.max + ')' },
+    var ch = [
+      { k: 'extension', t: 'Extensión', ok: solo || (n >= CFG.resena.min && n <= CFG.resena.max), d: solo ? 'En archivos no se puede contar: la revisa el profesor' : n + ' palabras (se piden ' + CFG.resena.min + ' a ' + CFG.resena.max + ')' },
       { k: 'puntualidad', t: 'Puntualidad', ok: a.dias === 0, d: a.dias === 0 ? 'A tiempo' : (a.cero ? 'Más de 10 días de atraso: vale 0' : a.dias + ' día(s) de atraso: −' + a.descuento + ' puntos') },
       { k: 'declaracion', t: 'Declaración de inteligencia artificial', ok: !!decl, d: decl ? 'Completa' : 'Falta completarla', bloquea: !decl },
-      { k: 'partes', t: 'Partes obligatorias', ok: faltan.length === 0, d: faltan.length ? 'No encuentro: ' + faltan.join(', ') : 'Están las 5 partes' }
+      { k: 'partes', t: 'Partes obligatorias', ok: solo || faltan.length === 0, d: solo ? 'En archivos no se pueden buscar: las revisa el profesor' : faltan.length ? 'No encuentro: ' + faltan.join(', ') : 'Están las 5 partes' }
     ];
+    if (na > 0) ch.push({ k: 'archivos', t: 'Archivos', ok: true, d: na + (na === 1 ? ' archivo adjunto' : ' archivos adjuntos') });
+    return ch;
   }
 
   /* Foro: aporte 70 %, cada respuesta 15 %. Aporte después del jueves: mitad. Nada después del domingo. */

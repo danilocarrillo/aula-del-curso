@@ -14,9 +14,16 @@ create schema auth;
 create table auth.users (id uuid primary key default gen_random_uuid(), email text unique, raw_user_meta_data jsonb default '{}');
 create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
 grant usage on schema auth to anon, authenticated;
+create schema storage;
+create table storage.buckets (id text primary key, name text, public boolean, file_size_limit bigint, allowed_mime_types text[]);
+create table storage.objects (id uuid primary key default gen_random_uuid(), bucket_id text, name text);
+alter table storage.objects enable row level security;
+create function storage.foldername(name text) returns text[] language sql immutable as $$ select (string_to_array(name, '/'))[1:array_length(string_to_array(name, '/'), 1) - 1] $$;
+grant usage on schema storage to authenticated; grant select, insert, delete on storage.objects to authenticated;
 SQL
 $P -f "$BD/01-esquema.sql" >/dev/null || { echo "FALLA: el archivo 01 no se pudo aplicar"; exit 1; }
 $P -f "$BD/02-contenido.sql" >/dev/null || { echo "FALLA: el archivo 02 no se pudo aplicar"; exit 1; }
+$P -f "$BD/05-archivos.sql" >/dev/null || { echo "FALLA: el archivo 05 no se pudo aplicar"; exit 1; }
 # Hoy cae en la semana 2 del curso.
 $P -c "update configuracion set inicio = (date_trunc('week', now() at time zone zona))::date - 7" >/dev/null
 $P <<'SQL'
@@ -96,6 +103,22 @@ tiene "no puede valorar con un mensaje ajeno" "$(como $C "insert into valoracion
 tiene "un estudiante no puede ponerse nota de foro" "$(como $A "insert into notas_foro (foro, estudiante, nota, publicada) values ('f1', '$A', 100, true)")" "row-level security"
 como $PR "insert into notas_foro (foro, estudiante, nota, publicada) values ('f1', '$A', 85, true), ('f1', '$B', 50, false)" >/dev/null
 es "nota de foro: cada uno ve solo la suya y solo si está publicada" "$(como $A 'select count(*) from notas_foro')/$(como $B 'select count(*) from notas_foro')" "1/0"
+
+echo "— Archivos"
+EC=$($P -t -A -c "select id from entregas where estudiante='$C' and tarea='r1'")
+es "entrega solo con archivos: se acepta sin texto" "$(como $B "insert into entregas (tarea, texto, ia_uso) values ('r2', '', 'no') returning palabras")" "0"
+es "Carla adjunta un archivo a su entrega" "$(como $C "insert into archivos (entrega, ruta, nombre) values ('$EC', '$C/r1/a.pdf', 'a.pdf') returning nombre")" "a.pdf"
+tiene "no puede adjuntar a la entrega de otro" "$(como $C "insert into archivos (entrega, ruta, nombre) values ('$EB', '$C/r1/b.pdf', 'b.pdf')")" "row-level security"
+tiene "no puede registrar un archivo fuera de su carpeta" "$(como $C "insert into archivos (entrega, ruta, nombre) values ('$EC', '$B/r1/c.pdf', 'c.pdf')")" "row-level security"
+tiene "entrega calificada: ya no admite archivos" "$(como $A "insert into archivos (entrega, ruta, nombre) values ('$EA', '$A/r1/d.pdf', 'd.pdf')")" "row-level security"
+es "Bruno no ve los archivos de Carla" "$(como $B 'select count(*) from archivos')" "0"
+es "el profesor ve los archivos" "$(como $PR 'select count(*) from archivos')" "1"
+for i in 2 3 4 5 6; do como $C "insert into archivos (entrega, ruta, nombre) values ('$EC', '$C/r1/$i.jpg', '$i.jpg')" >/dev/null; done
+tiene "el séptimo archivo se rechaza" "$(como $C "insert into archivos (entrega, ruta, nombre) values ('$EC', '$C/r1/7.jpg', '7.jpg')")" "hasta 6 archivos"
+es "almacén: sube a su propia carpeta" "$(como $C "insert into storage.objects (bucket_id, name) values ('entregas', '$C/r1/a.pdf') returning bucket_id")" "entregas"
+tiene "almacén: no puede subir a la carpeta de otro" "$(como $C "insert into storage.objects (bucket_id, name) values ('entregas', '$B/r1/x.pdf')")" "row-level security"
+es "almacén: Bruno no ve lo de Carla; el profesor sí" "$(como $B 'select count(*) from storage.objects')/$(como $PR 'select count(*) from storage.objects')" "0/1"
+es "almacén: Bruno no puede borrar lo de Carla" "$(como $B "delete from storage.objects returning 1" | wc -l | tr -d ' ')" "0"
 
 echo "— Contenido y roles"
 tiene "un estudiante no puede editar las semanas" "$(como $A "update semanas set titulo='x' where n=1 returning 1" | wc -l | tr -d ' ')" "0"

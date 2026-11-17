@@ -26,7 +26,7 @@ Pendientes de decidir: dirección de correo de los avisos, número de preguntas 
 ## Carpetas
 
 - `docs/` — el aula real, tal como se publica en internet: `index.html`, `app.js` (pantallas y conexión), `reglas.js` (reglas del curso), `config.js` (dirección y llave pública) y `supabase.js` (biblioteca de conexión, copiada tal cual).
-- `base-de-datos/` — lo que se pega en Supabase, en orden: `01-esquema.sql` (tablas y seguridad), `02-contenido.sql` (12 semanas, tareas, foros), `03-cuentas-de-prueba.sql`.
+- `base-de-datos/` — lo que se pega en Supabase, en orden: `01-esquema.sql` (tablas y seguridad), `02-contenido.sql` (12 semanas, tareas, foros), `03-cuentas-de-prueba.sql`, `04-profesor-real.sql`, `05-archivos.sql` (documentos, escaneos y fotos en las entregas).
 - `prototipo/` — la maqueta inicial.
 
 ## Seguridad, en pocas palabras

@@ -4,7 +4,9 @@
   var R = Reglas, C = R.CFG, Z = C.zona, CONF = window.AULA_CONFIG;
   var sb = window.supabase.createClient(CONF.url, CONF.llavePublica);
   var OTRAS = { 6: 'Evaluación de medio término', 7: 'Avance de la tesis', 11: 'Reseña crítica del libro', 12: 'Evaluación final y tesis' };
-  var S = { desfase: 0, usuario: null, perfil: null, vista: { n: 'entrada' }, usuarios: [], semanas: [], tareas: [], foros: [], entregas: [], notas: [], mensajes: [], notasForo: [], vistos: {}, borradores: {} };
+  var S = { desfase: 0, usuario: null, perfil: null, vista: { n: 'entrada' }, usuarios: [], semanas: [], tareas: [], foros: [], entregas: [], notas: [], mensajes: [], notasForo: [], vistos: {}, borradores: {}, archivos: [], conArchivos: false };
+  var PEND = {};                                   // archivos elegidos y aún no subidos, por tarea
+  var MAX_ARCH = 6, MAX_PESO = 10 * 1024 * 1024;
 
   function relleno(n, conPartes) {
     var w = [], partes = conPartes ? ['La historia.', 'El centro.', 'Las habitaciones.', 'La vara y Cristo.', 'Lo que me enseña.'] : [];
@@ -41,7 +43,8 @@
           pedir(sb.from('mensajes').select('*').order('creado')),
           pedir(sb.from('valoraciones').select('*')),
           pedir(sb.from('notas_foro').select('*')),
-          pedir(sb.from('marcas').select('*'))
+          pedir(sb.from('marcas').select('*')),
+          sb.from('archivos').select('*').order('creado').then(function (r) { S.conArchivos = !r.error; return r.error ? [] : r.data; })
         ]).then(function (d) {
           var cfg = d[0];
           if (cfg) { C.zona = Z = cfg.zona; C.inicio = cfg.inicio.split('-').map(Number); }
@@ -55,6 +58,7 @@
           S.mensajes = d[8].map(function (m) { return { id: m.id, foro: m.foro, autor: m.autor, responde: m.responde, texto: m.texto, fecha: Date.parse(m.creado), lista: listas[m.id] }; });
           S.notasForo = d[10].map(function (n) { return { foro: n.foro, est: n.estudiante, nota: +n.nota, publicada: n.publicada }; });
           S.vistos = {}; d[11].forEach(function (m) { S.vistos[m.estudiante + ':' + m.clave] = true; });
+          S.archivos = d[12];
         });
       });
     });
@@ -67,6 +71,8 @@
     if (/valid email|invalid format|is invalid/i.test(m)) return 'Ese correo no parece válido. Revísalo.';
     if (/row-level security|permission denied/i.test(m)) return 'No tienes permiso para hacer eso.';
     if (/Failed to fetch|NetworkError|network/i.test(m)) return 'No hay conexión con el aula. Revisa tu internet e inténtalo de nuevo. Lo que escribiste sigue aquí.';
+    if (/mime type|not supported/i.test(m)) return 'Ese tipo de archivo no se admite. Usa PDF, Word o una imagen.';
+    if (/exceeded the maximum|too large|Payload/i.test(m)) return 'El archivo pesa más de 10 MB. Redúcelo e inténtalo de nuevo.';
     if (/ia_uso|entregas_check/i.test(m)) return 'Completa la declaración de inteligencia artificial para poder entregar.';
     return m;
   }
@@ -118,6 +124,41 @@
     return it;
   }
   function num(n) { return n === null || n === undefined ? '—' : (Math.round(n * 10) / 10).toString().replace('.', ','); }
+
+  /* ---------- Archivos de las entregas ---------- */
+  function archivosDe(enId) { return S.archivos.filter(function (a) { return a.entrega === enId; }); }
+  function peso(n) { return n > 1048576 ? (Math.round(n / 104857.6) / 10 + ' MB').replace('.', ',') : Math.max(1, Math.round(n / 1024)) + ' KB'; }
+  function esImagen(a) { return /^image\//.test(a.tipo || a.type || ''); }
+  function admitido(f) { return /^image\//.test(f.type) || /\.(pdf|docx?)$/i.test(f.name) || /pdf|msword|wordprocessingml/.test(f.type); }
+  function nombreLimpio(n) { return n.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '').slice(-80) || 'archivo'; }
+  /* Las fotos se reducen antes de subir, para que quepan muchas páginas sin llenar el almacén. */
+  function preparar(f) {
+    var igual = { blob: f, tipo: f.type || 'application/octet-stream', nombre: f.name };
+    if (!/^image\//.test(f.type) || /gif/.test(f.type)) return Promise.resolve(igual);
+    return new Promise(function (res) {
+      var img = new Image(), url = URL.createObjectURL(f);
+      img.onload = function () {
+        var s = Math.min(1, 2000 / Math.max(img.width, img.height)), c = document.createElement('canvas');
+        c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+        c.toBlob(function (b) { res(b && (b.size < f.size || !/jpeg|png|webp/.test(f.type)) ? { blob: b, tipo: 'image/jpeg', nombre: f.name.replace(/\.\w+$/, '') + '.jpg' } : igual); }, 'image/jpeg', 0.82);
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); res(igual); };
+      img.src = url;
+    });
+  }
+  function htmlArchivos(lista, quitar) {
+    if (!lista.length) return '';
+    return '<ul class="archivos">' + lista.map(function (a) {
+      return '<li><span class="arch-n">' + (esImagen(a) ? 'Foto' : 'Documento') + ' · ' + esc(a.nombre) + '<small>' + peso(a.tamano) + '</small></span><span class="botones"><button class="btn sec chico" type="button" data-a="abrirArchivo" data-id="' + a.id + '">Abrir</button>' + (quitar ? '<button class="enlace" type="button" data-a="quitarArchivo" data-id="' + a.id + '">Quitar</button>' : '') + '</span></li>';
+    }).join('') + '</ul>';
+  }
+  function refrescaArchivos(tId) {
+    var caja = document.getElementById('lista-arch'); if (!caja) return;
+    var e = entregaDe(tId, S.usuario), ya = e ? archivosDe(e.id) : [], pend = PEND[tId] || [];
+    caja.innerHTML = htmlArchivos(ya, true) + (pend.length ? '<ul class="archivos">' + pend.map(function (f, i) { return '<li><span class="arch-n">' + (esImagen(f) ? 'Foto' : 'Documento') + ' · ' + esc(f.name) + '<small>' + peso(f.size) + ' · se sube al confirmar</small></span><button class="enlace" type="button" data-a="quitarPend" data-t="' + tId + '" data-i="' + i + '">Quitar</button></li>'; }).join('') + '</ul>' : '') + (!ya.length && !pend.length ? '<p class="vacio">Todavía no hay archivos.</p>' : '');
+  }
+  function cuantosArchivos(tId) { var e = entregaDe(tId, S.usuario); return (e ? archivosDe(e.id).length : 0) + (PEND[tId] || []).length; }
 
   /* ---------- Vistas del estudiante ---------- */
   var V = {};
@@ -209,19 +250,21 @@
     if (x.k === 'calificada') return h + '<section class="card"><p>' + pastilla('calificada') + '</p><p>Esta reseña ya está calificada: <strong>' + num(x.nota) + ' / 100</strong>. Mira el detalle en «Mis tareas».</p></section>';
     if (x.e) h += '<p class="nota-info">' + pastilla(x.k) + ' Ya entregaste el ' + fecha(x.e.entregadaMs) + '. Puedes corregir y volver a entregar mientras no esté calificada; contará la nueva fecha.</p>';
     h += '<section class="card"><h2>La reseña responde, en este orden</h2><ol class="orden"><li><strong>La historia:</strong> quién era la persona, de qué casa venía y qué hizo.</li><li><strong>El centro:</strong> qué unificaba su ser.</li><li><strong>Las habitaciones:</strong> qué hizo con sus cuentas, su cuerpo, su matrimonio o soltería, sus hijos o quienes cuidaba, y su ministerio.</li><li><strong>La vara y Cristo:</strong> un rasgo de 1 Timoteo 3 o Tito 1 que el caso deja ver, y el modo de mando de Cristo.</li><li><strong>Lo que me enseña:</strong> una conclusión personal y concreta.</li></ol></section>';
-    h += '<section class="card"><label for="texto-resena"><h2>Tu reseña</h2></label><textarea id="texto-resena" rows="12" data-i="resena" data-t="' + t.id + '" placeholder="Escribe aquí tu reseña (600 a 800 palabras)">' + esc(b.texto) + '</textarea><div class="contador" id="cont-resena"></div>' + (CONF.modoPrueba ? '<button class="enlace" data-a="rellenar" data-t="' + t.id + '">Rellenar con texto de ejemplo (solo para probar)</button>' : '') + '</section>';
+    h += '<section class="card"><label for="texto-resena"><h2>Tu reseña</h2></label><textarea id="texto-resena" rows="12" data-i="resena" data-t="' + t.id + '" placeholder="Escribe aquí tu reseña (600 a 800 palabras), o adjunta abajo un documento o fotos">' + esc(b.texto) + '</textarea><div class="contador" id="cont-resena"></div>' + (CONF.modoPrueba ? '<button class="enlace" data-a="rellenar" data-t="' + t.id + '">Rellenar con texto de ejemplo (solo para probar)</button>' : '') + '</section>';
+    if (S.conArchivos) h += '<section class="card"><h2>Documentos, escaneos o fotos</h2><p>Puedes escribir arriba, adjuntar archivos, o las dos cosas. Se admiten PDF, Word e imágenes: hasta ' + MAX_ARCH + ' archivos de 10 MB cada uno. Si es una foto, que se lea bien.</p><div id="lista-arch"></div><label class="btn sec" for="elige-arch">Agregar documento o foto</label><input type="file" id="elige-arch" class="oculto" multiple accept=".pdf,.doc,.docx,image/*" data-t="' + t.id + '"></section>';
     h += '<section class="card"><h2>Declaración de uso de inteligencia artificial</h2><p>Es obligatoria para entregar.</p><label class="check"><input type="radio" name="ia" id="ia-no" value="no" data-i="ia" data-t="' + t.id + '"' + (b.uso === 'no' ? ' checked' : '') + '> No usé inteligencia artificial</label><label class="check"><input type="radio" name="ia" id="ia-si" value="si" data-i="ia" data-t="' + t.id + '"' + (b.uso === 'si' ? ' checked' : '') + '> Usé inteligencia artificial</label><div id="ia-det-caja"' + (b.uso === 'si' ? '' : ' hidden') + '><label for="ia-detalle">¿Qué herramienta y para qué?</label><input type="text" id="ia-detalle" data-i="iadet" data-t="' + t.id + '" value="' + esc(b.detalle) + '"></div></section>';
     h += '<section class="card"><h2>Comprobaciones</h2><div id="comp-resena"></div><button class="btn" id="confirmar" data-a="confirmar" data-t="' + t.id + '">Confirmar entrega</button><p class="vacio" id="porque"></p></section>';
     return h;
   };
   function refrescaResena(tId) {
     var t = tarea(tId), b = S.borradores[S.usuario + ':' + tId]; if (!b) return;
-    var ch = R.comprobarResena({ texto: b.texto, entregadaMs: ahora(), ia: { uso: b.uso, detalle: b.detalle } }, t.limite), n = R.contarPalabras(b.texto);
+    var na = cuantosArchivos(tId), ch = R.comprobarResena({ texto: b.texto, entregadaMs: ahora(), ia: { uso: b.uso, detalle: b.detalle }, archivos: na }, t.limite), n = R.contarPalabras(b.texto);
+    refrescaArchivos(tId);
     var c = document.getElementById('cont-resena'); if (c) { c.textContent = n + ' palabras · se piden de 600 a 800'; c.className = 'contador ' + (n >= 600 && n <= 800 ? 'ok' : 'no'); }
     var k = document.getElementById('comp-resena'); if (k) k.innerHTML = htmlComprobaciones(ch);
-    var bloquea = ch.some(function (x) { return x.bloquea; }) || n === 0, bt = document.getElementById('confirmar'), pq = document.getElementById('porque');
+    var vacia = n === 0 && na === 0, bloquea = ch.some(function (x) { return x.bloquea; }) || vacia, bt = document.getElementById('confirmar'), pq = document.getElementById('porque');
     if (bt) bt.disabled = bloquea;
-    if (pq) pq.textContent = n === 0 ? 'Escribe tu reseña para poder entregar.' : bloquea ? 'Completa la declaración de inteligencia artificial para poder entregar.' : (ch.some(function (x) { return !x.ok; }) ? 'Puedes entregar así, pero revisa los avisos marcados con «!».' : '');
+    if (pq) pq.textContent = vacia ? 'Escribe tu reseña o adjunta un archivo para poder entregar.' : bloquea ? 'Completa la declaración de inteligencia artificial para poder entregar.' : (ch.some(function (x) { return !x.ok; }) ? 'Puedes entregar así, pero revisa los avisos marcados con «!».' : '');
   }
   V.foros = function () {
     var h = '<h1>Foros</h1><div class="lista">';
@@ -270,7 +313,7 @@
       h += '<section class="card tarea"><div class="fila"><div><strong>' + t.titulo + '</strong> · semana ' + t.semana + '<br><small>Límite: ' + fechaCorta(t.limite) + '</small></div>' + pastilla(x.k) + '</div>';
       if (x.k === 'calificada') {
         h += '<p class="grande">' + num(x.nota) + ' <small>/ 100</small></p>' + (x.a.dias ? '<p class="aviso">Rúbrica: ' + totalRubrica(x.n.puntos) + ' · atraso de ' + x.a.dias + ' día(s): −' + x.a.descuento + '</p>' : '') + '<table class="mini">' + C.rubricaResena.map(function (c) { return '<tr><td>' + c.t + '</td><td>' + (x.n.puntos[c.k] || 0) + ' / ' + c.max + '</td></tr>'; }).join('') + '</table><p><strong>Comentario del profesor:</strong> ' + esc(x.n.comentario) + '</p>';
-      } else if (x.e) h += '<p>Entregada: ' + fecha(x.e.entregadaMs) + (x.a.dias ? '<br><span class="aviso">' + x.a.dias + ' día(s) de atraso: se restarán ' + x.a.descuento + ' puntos.</span>' : '') + '</p>';
+      } else if (x.e) h += htmlArchivos(archivosDe(x.e.id), false) + '<p>Entregada: ' + fecha(x.e.entregadaMs) + (x.a.dias ? '<br><span class="aviso">' + x.a.dias + ' día(s) de atraso: se restarán ' + x.a.descuento + ' puntos.</span>' : '') + '</p>';
       if (x.k !== 'calificada' && ab) h += '<button class="btn sec" data-a="ir" data-n="entregar" data-t="' + t.id + '">' + (x.e ? 'Corregir y volver a entregar' : 'Entregar') + '</button>';
       h += '</section>';
     });
@@ -340,15 +383,15 @@
     if (!l.length) h += '<p class="vacio">Todavía no hay entregas.</p>';
     l.forEach(function (e) {
       var t = tarea(e.tarea), x = estadoTarea(t, e.est);
-      h += '<section class="card"><div class="fila"><div><strong>' + esc(usuario(e.est).nombre) + '</strong> · ' + t.titulo + '<br><small>Entregada: ' + fechaCorta(e.entregadaMs) + ' · ' + R.contarPalabras(e.texto) + ' palabras</small></div>' + pastilla(x.k) + '</div><button class="btn sec" data-a="ir" data-n="calificar" data-e="' + e.id + '">' + (x.k === 'calificada' ? 'Ver o corregir la nota (' + num(x.nota) + ')' : 'Calificar') + '</button></section>';
+      h += '<section class="card"><div class="fila"><div><strong>' + esc(usuario(e.est).nombre) + '</strong> · ' + t.titulo + '<br><small>Entregada: ' + fechaCorta(e.entregadaMs) + ' · ' + R.contarPalabras(e.texto) + ' palabras' + (archivosDe(e.id).length ? ' · ' + archivosDe(e.id).length + ' archivo(s)' : '') + '</small></div>' + pastilla(x.k) + '</div><button class="btn sec" data-a="ir" data-n="calificar" data-e="' + e.id + '">' + (x.k === 'calificada' ? 'Ver o corregir la nota (' + num(x.nota) + ')' : 'Calificar') + '</button></section>';
     });
     return h;
   };
   V.calificar = function (p) {
     var e = S.entregas.filter(function (x) { return x.id === p.e; })[0], t = tarea(e.tarea), n = notaDe(e.id) || { puntos: {}, comentario: '' }, a = R.atraso(e.entregadaMs, t.limite, e.prorroga);
-    var ch = R.comprobarResena(e, t.limite);
+    var arch = archivosDe(e.id), ch = R.comprobarResena(Object.assign({}, e, { archivos: arch.length }), t.limite);
     var h = '<button class="volver" data-a="ir" data-n="entregas">← Entregas</button><h1>' + t.titulo + ' · ' + esc(usuario(e.est).nombre) + '</h1><div class="lado">';
-    h += '<section class="card"><h2>La entrega</h2><p><small>Entregada: ' + fechaCorta(e.entregadaMs) + ' · Declaración de IA: ' + (e.ia.uso === 'si' ? 'Usó. ' + esc(e.ia.detalle) : 'No usó') + '</small></p><div class="entrega-texto">' + esc(e.texto) + '</div><h2>Comprobaciones automáticas</h2>' + htmlComprobaciones(ch) + '</section>';
+    h += '<section class="card"><h2>La entrega</h2><p><small>Entregada: ' + fechaCorta(e.entregadaMs) + ' · Declaración de IA: ' + (e.ia.uso === 'si' ? 'Usó. ' + esc(e.ia.detalle) : 'No usó') + '</small></p>' + (e.texto.trim() ? '<div class="entrega-texto">' + esc(e.texto) + '</div>' : '<p class="vacio">Sin texto escrito: la entrega está en los archivos.</p>') + (arch.length ? '<h2>Archivos</h2>' + htmlArchivos(arch, false) + '<div id="vistas-arch" class="vistas-arch"></div>' : '') + '<h2>Comprobaciones automáticas</h2>' + htmlComprobaciones(ch) + '</section>';
     h += '<section class="card"><h2>Rúbrica</h2>' + C.rubricaResena.map(function (c) { return '<div class="crit"><label for="pt-' + c.k + '">' + c.t + ' <small>(máx. ' + c.max + ')</small></label><input type="number" inputmode="numeric" id="pt-' + c.k + '" min="0" max="' + c.max + '" value="' + (n.puntos[c.k] === undefined ? '' : n.puntos[c.k]) + '" data-i="pt"></div>'; }).join('');
     h += '<div class="total" id="total-rub" data-dias="' + a.dias + '" data-desc="' + a.descuento + '" data-cero="' + (a.cero ? 1 : 0) + '"></div>';
     h += '<label class="check"><input type="checkbox" id="prorroga" data-a="prorroga" data-e="' + e.id + '"' + (e.prorroga ? ' checked' : '') + '> Conceder prórroga (anula el descuento por atraso)</label>';
@@ -433,7 +476,7 @@
     document.getElementById('menu').innerHTML = MENU[u.rol].map(function (m) { return '<button data-a="ir" data-n="' + m[0] + '"' + (m[0] === activo ? ' aria-current="page"' : '') + '>' + m[1] + '</button>'; }).join('');
     document.getElementById('vista').innerHTML = V[v.n](v);
     if (v.n === 'entregar') refrescaResena(v.t);
-    if (v.n === 'calificar') refrescaTotal();
+    if (v.n === 'calificar') { refrescaTotal(); vistasPrevias(v.e); }
     Array.prototype.forEach.call(document.querySelectorAll('textarea[data-i="aporte"],textarea[data-i="resp"]'), cuenta);
   }
   function ir(n, extra, msg) { S.vista = Object.assign({ n: n }, extra || {}); pintar(msg); window.scrollTo(0, 0); }
@@ -481,11 +524,37 @@
     rellenar: function (d) { var b = S.borradores[S.usuario + ':' + d.t]; b.texto = relleno(650, true); document.getElementById('texto-resena').value = b.texto; guardaBorradores(); refrescaResena(d.t); },
     rellenarForo: function (d) { var el = document.getElementById(d.id); el.value = relleno(+d.n); cuenta(el); },
     confirmar: function (d) {
-      var b = S.borradores[S.usuario + ':' + d.t], e = entregaDe(d.t, S.usuario), fila = { texto: b.texto, ia_uso: b.uso, ia_detalle: b.uso === 'si' ? b.detalle : '' };
-      hacer(function () { return e ? pedir(sb.from('entregas').update(fila).eq('id', e.id).select()) : pedir(sb.from('entregas').insert(Object.assign({ tarea: d.t }, fila)).select()); }, function () {
+      var b = S.borradores[S.usuario + ':' + d.t], e = entregaDe(d.t, S.usuario), fila = { texto: b.texto, ia_uso: b.uso, ia_detalle: b.uso === 'si' ? b.detalle : '' }, pend = PEND[d.t] || [];
+      hacer(function () {
+        return (e ? pedir(sb.from('entregas').update(fila).eq('id', e.id).select()) : pedir(sb.from('entregas').insert(Object.assign({ tarea: d.t }, fila)).select())).then(function (filas) {
+          var id = filas[0].id, cadena = Promise.resolve();
+          pend.slice().forEach(function (f, i) {
+            cadena = cadena.then(function () { return preparar(f); }).then(function (x) {
+              if (x.blob.size > MAX_PESO) throw new Error('«' + f.name + '» pesa más de 10 MB. Redúcelo e inténtalo de nuevo.');
+              var ruta = S.usuario + '/' + d.t + '/' + Date.now() + '-' + i + '-' + nombreLimpio(x.nombre);
+              return pedir(sb.storage.from('entregas').upload(ruta, x.blob, { contentType: x.tipo, upsert: false })).then(function () {
+                return pedir(sb.from('archivos').insert({ entrega: id, ruta: ruta, nombre: x.nombre, tipo: x.tipo, tamano: x.blob.size }));
+              }).then(function () { PEND[d.t].splice(PEND[d.t].indexOf(f), 1); });
+            });
+          });
+          return cadena;
+        });
+      }, function () {
         delete S.borradores[S.usuario + ':' + d.t]; guardaBorradores();
         var x = estadoTarea(tarea(d.t), S.usuario);
         ir('tareas', {}, 'Entrega recibida.' + (x.a && x.a.dias ? ' Llegó con ' + x.a.dias + ' día(s) de atraso: se restarán ' + x.a.descuento + ' puntos.' : ' Llegó a tiempo.'));
+      });
+    },
+    quitarPend: function (d) { PEND[d.t].splice(+d.i, 1); refrescaResena(d.t); },
+    quitarArchivo: function (d) {
+      var a = S.archivos.filter(function (x) { return x.id === d.id; })[0], t = S.vista.t;
+      hacer(function () { return pedir(sb.storage.from('entregas').remove([a.ruta])).then(function () { return pedir(sb.from('archivos').delete().eq('id', a.id)); }); }, function () { aviso('Archivo quitado.'); refrescaResena(t); });
+    },
+    abrirArchivo: function (d) {
+      var a = S.archivos.filter(function (x) { return x.id === d.id; })[0], w = window.open('about:blank');
+      sb.storage.from('entregas').createSignedUrl(a.ruta, 3600).then(function (r) {
+        if (r.error) { if (w) w.close(); return aviso(traducir(r.error), true); }
+        if (w) w.location = r.data.signedUrl; else window.location.href = r.data.signedUrl;
       });
     },
     publicar: function (d) {
@@ -537,6 +606,14 @@
     pedirBaja: function (d) { ir('estudiantes', { baja: d.id }); },
     estado: function (d) { hacer(function () { return pedir(sb.from('perfiles').update({ estado: d.e }).eq('id', d.id).select()); }, function () { ir('estudiantes', {}, d.e === 'activo' ? 'Cuenta activada. Ya puede entrar al curso.' : 'Cuenta dada de baja.'); }); }
   };
+  /* En la pantalla de calificar, las fotos se muestran a la vista, sin tener que abrirlas una por una. */
+  function vistasPrevias(enId) {
+    var caja = document.getElementById('vistas-arch'), fotos = archivosDe(enId).filter(esImagen); if (!caja || !fotos.length) return;
+    sb.storage.from('entregas').createSignedUrls(fotos.map(function (a) { return a.ruta; }), 3600).then(function (r) {
+      if (r.error || !document.getElementById('vistas-arch')) return;
+      caja.innerHTML = r.data.filter(function (x) { return x.signedUrl; }).map(function (x, i) { return '<img src="' + esc(x.signedUrl) + '" alt="Página ' + (i + 1) + ' de la entrega: ' + esc(fotos[i].nombre) + '" loading="lazy">'; }).join('');
+    });
+  }
   function filaForo(fid, est) { var el = document.getElementById('nf-' + est); return { foro: fid, estudiante: est, nota: Math.max(0, Math.min(100, +el.value || 0)), publicada: true }; }
 
   document.addEventListener('click', function (ev) {
@@ -544,7 +621,20 @@
     if (el.tagName === 'INPUT' && el.type !== 'checkbox') return;
     if (A[el.dataset.a]) A[el.dataset.a](el.dataset, el);
   });
-  document.addEventListener('change', function (ev) { var el = ev.target; if (el.tagName === 'SELECT' && el.dataset.a && A[el.dataset.a]) A[el.dataset.a](el.dataset, el); });
+  document.addEventListener('change', function (ev) {
+    var el = ev.target;
+    if (el.id === 'elige-arch') {
+      var t = el.dataset.t, lista = PEND[t] = PEND[t] || [], malos = [];
+      Array.prototype.forEach.call(el.files, function (f) {
+        if (!admitido(f)) malos.push('«' + f.name + '» no es PDF, Word ni imagen');
+        else if (!/^image\//.test(f.type) && f.size > MAX_PESO) malos.push('«' + f.name + '» pesa más de 10 MB');
+        else if (cuantosArchivos(t) >= MAX_ARCH) malos.push('solo caben ' + MAX_ARCH + ' archivos por entrega');
+        else lista.push(f);
+      });
+      el.value = ''; aviso(malos.length ? 'No se agregó: ' + malos.filter(function (x, i) { return malos.indexOf(x) === i; }).join('; ') + '.' : '', malos.length > 0); refrescaResena(t); return;
+    }
+    if (el.tagName === 'SELECT' && el.dataset.a && A[el.dataset.a]) A[el.dataset.a](el.dataset, el);
+  });
   document.addEventListener('input', function (ev) {
     var el = ev.target, i = el.dataset.i; if (!i) return;
     var b = el.dataset.t ? S.borradores[S.usuario + ':' + el.dataset.t] : null;
