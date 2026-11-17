@@ -30,7 +30,7 @@ const srv = http.createServer((q, r) => { const f = path.join(raiz, q.url.split(
   await menu('Mis tareas'); v = await vista();
   if (/Reseña 1[\s\S]{0,80}Calificada/.test(v)) { t('reseña 1 ya calificada en una corrida anterior', true); }
   else {
-    await p.click('section.tarea:has-text("Reseña 1") button'); await quieto(); await ov('entregar');
+    await p.click('section.tarea:has-text("Reseña 1") button[data-a=ir]'); await quieto(); await ov('entregar');
     if (!(await p.inputValue('#texto-resena'))) await p.click('button:has-text("Rellenar con texto")');
     await p.check('#ia-si'); await p.fill('#ia-detalle', ''); t('sin detalle de IA el botón está bloqueado', await p.isDisabled('#confirmar'));
     await p.fill('#ia-detalle', 'Corrector de ortografía'); await p.click('#confirmar'); await quieto();
