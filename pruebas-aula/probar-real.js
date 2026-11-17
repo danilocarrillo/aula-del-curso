@@ -2,7 +2,7 @@
 // Uso: AULA_CLAVE_PRUEBA=... node probar-real.js   (sirve la carpeta aula/ en un puerto local)
 const { chromium } = require('playwright'); const http = require('http'); const fs = require('fs'); const path = require('path');
 const CLAVE = process.env.AULA_CLAVE_PRUEBA; if (!CLAVE) { console.log('Falta AULA_CLAVE_PRUEBA'); process.exit(2); }
-const raiz = path.join(__dirname, '..'); const tipos = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8' };
+const raiz = path.join(__dirname, '..', 'docs'); const tipos = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8' };
 const srv = http.createServer((q, r) => { const f = path.join(raiz, q.url.split('?')[0] === '/' ? 'index.html' : q.url.split('?')[0]); fs.readFile(f, (e, d) => { if (e) { r.writeHead(404); r.end(); } else { r.writeHead(200, { 'Content-Type': tipos[path.extname(f)] || 'application/octet-stream' }); r.end(d); } }); });
 (async () => {
   await new Promise(r => srv.listen(0, r)); const URL0 = 'http://localhost:' + srv.address().port + '/';

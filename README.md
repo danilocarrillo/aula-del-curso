@@ -25,7 +25,7 @@ Pendientes de decidir: dirección de correo de los avisos, número de preguntas 
 
 ## Carpetas
 
-- `aula/` — el aula real: `index.html`, `app.js` (pantallas y conexión), `reglas.js` (reglas del curso), `config.js` (dirección y llave pública) y `supabase.js` (biblioteca de conexión, copiada tal cual).
+- `docs/` — el aula real, tal como se publica en internet: `index.html`, `app.js` (pantallas y conexión), `reglas.js` (reglas del curso), `config.js` (dirección y llave pública) y `supabase.js` (biblioteca de conexión, copiada tal cual).
 - `base-de-datos/` — lo que se pega en Supabase, en orden: `01-esquema.sql` (tablas y seguridad), `02-contenido.sql` (12 semanas, tareas, foros), `03-cuentas-de-prueba.sql`.
 - `prototipo/` — la maqueta inicial.
 
@@ -41,10 +41,10 @@ Pendientes de decidir: dirección de correo de los avisos, número de preguntas 
 ```sh
 node prototipo/pruebas/prueba-reglas.js              # reglas del curso
 bash base-de-datos/pruebas/probar-seguridad.sh       # seguridad, en un PostgreSQL local
-AULA_CLAVE_PRUEBA=... node aula/pruebas/probar-real.js   # el aula real, en un navegador, contra la base de datos
+AULA_CLAVE_PRUEBA=... node pruebas-aula/probar-real.js   # el aula real, en un navegador, contra la base de datos
 ```
 
-Antes de inscribir estudiantes reales: borrar las cuentas `@aula.prueba` y sus datos, y poner `modoPrueba: false` en `aula/config.js`.
+Antes de inscribir estudiantes reales: borrar las cuentas `@aula.prueba` y sus datos, y poner `modoPrueba: false` en `docs/config.js`.
 
 ## Qué hay en esta carpeta (maqueta)
 
