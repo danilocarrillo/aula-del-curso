@@ -4,8 +4,10 @@ Aula en línea del curso «Teología del liderazgo en la misión: estudio de cas
 
 ## Estado
 
-**Fase 1 · prototipo navegable.** Las pantallas y las reglas funcionan con datos de ejemplo.
-Todavía no hay cuentas reales ni base de datos: lo que se hace en el prototipo se guarda solo en el navegador de quien lo usa.
+**Fase 1 · aula real en pruebas.** El aula ya entra con correo y contraseña y guarda todo en la base de datos (Supabase).
+Funciona con cuatro cuentas de prueba. Falta publicarla en una dirección de internet y cargar el contenido del profesor.
+
+La carpeta `prototipo/` conserva la primera maqueta, que funciona sin base de datos.
 
 ## Decisiones tomadas
 
@@ -21,7 +23,30 @@ Todavía no hay cuentas reales ni base de datos: lo que se hace en el prototipo 
 
 Pendientes de decidir: dirección de correo de los avisos, número de preguntas y tiempo de las evaluaciones, confirmación de las rúbricas, forma de inscripción.
 
-## Qué hay en esta carpeta
+## Carpetas
+
+- `aula/` — el aula real: `index.html`, `app.js` (pantallas y conexión), `reglas.js` (reglas del curso), `config.js` (dirección y llave pública) y `supabase.js` (biblioteca de conexión, copiada tal cual).
+- `base-de-datos/` — lo que se pega en Supabase, en orden: `01-esquema.sql` (tablas y seguridad), `02-contenido.sql` (12 semanas, tareas, foros), `03-cuentas-de-prueba.sql`.
+- `prototipo/` — la maqueta inicial.
+
+## Seguridad, en pocas palabras
+
+- Sin iniciar sesión no se lee nada. Una cuenta nueva nace «pendiente» y no ve el curso hasta que el profesor la activa.
+- Cada estudiante ve y escribe solo lo suyo. Las notas se ven solo cuando el profesor las publica.
+- La fecha de entrega la pone el servidor. Los foros se cierran en la base de datos, no solo en la pantalla.
+- La llave que está en `config.js` es pública por diseño. Nunca se guarda aquí una llave «secret» ni la contraseña de la base de datos.
+
+## Pruebas
+
+```sh
+node prototipo/pruebas/prueba-reglas.js              # reglas del curso
+bash base-de-datos/pruebas/probar-seguridad.sh       # seguridad, en un PostgreSQL local
+AULA_CLAVE_PRUEBA=... node aula/pruebas/probar-real.js   # el aula real, en un navegador, contra la base de datos
+```
+
+Antes de inscribir estudiantes reales: borrar las cuentas `@aula.prueba` y sus datos, y poner `modoPrueba: false` en `aula/config.js`.
+
+## Qué hay en esta carpeta (maqueta)
 
 - `prototipo/reglas.js` — las reglas del curso en un solo lugar: fechas, atrasos, foros, promedios y letras.
 - `prototipo/app.js` — las pantallas del estudiante y del profesor.
