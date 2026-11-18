@@ -145,7 +145,7 @@ body.portada .vista { display: block; padding: 0; margin: 0; gap: 0; }
 .tapa-g { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 400px); gap: clamp(24px, 4vw, 64px); align-items: end; padding: clamp(28px, 4vw, 56px) var(--lado) clamp(40px, 5vw, 72px); position: relative; }
 .tapa-h { display: flex; flex-direction: column; gap: 22px; min-width: 0; position: relative; }
 .tapa-barras { display: flex; flex-direction: column; gap: 12px; } .tapa-barras i { display: block; height: clamp(14px, 1.8vw, 26px); background: var(--hueso); transform-origin: left; animation: barra .7s cubic-bezier(.2,.8,.2,1) both; }
-.tapa-barras i:nth-child(1) { width: 62%; } .tapa-barras i:nth-child(2) { width: 88%; animation-delay: .1s; } .tapa-barras i:nth-child(3) { width: 44%; background: var(--rojo); animation-delay: .2s; }
+.tapa-barras i:nth-child(1) { width: 62%; background: #f5c12e; } .tapa-barras i:nth-child(2) { width: 88%; background: #1a3d8f; animation-delay: .1s; } .tapa-barras i:nth-child(3) { width: 44%; background: #c41e3a; animation-delay: .2s; }
 @keyframes barra { from { transform: scaleX(0); } }
 .tapa-t { font: 400 clamp(54px, 10.5vw, 168px)/.92 var(--cartel); text-transform: uppercase; letter-spacing: .005em; color: var(--hueso); margin: 0; text-wrap: initial; } .tapa-t span { display: block; white-space: nowrap; }
 .tapa-t mark { background: var(--ama); color: var(--negro); padding: .16em .12em 0; margin-left: .04em; display: inline-block; line-height: .95; transform: rotate(-2deg); }
