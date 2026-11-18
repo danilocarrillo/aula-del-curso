@@ -48,7 +48,7 @@
         ]).then(function (d) {
           var cfg = d[0];
           if (cfg) { C.zona = Z = cfg.zona; C.inicio = cfg.inicio.split('-').map(Number); }
-          S.usuarios = d[1].map(function (p) { return { id: p.id, nombre: p.nombre || 'Sin nombre', rol: p.rol === 'administrador' ? 'profesor' : p.rol, estado: p.estado, nota: '' }; });
+          S.usuarios = d[1].map(function (p) { return { id: p.id, nombre: p.nombre || 'Sin nombre', rol: p.rol === 'administrador' ? 'profesor' : p.rol, admin: p.rol === 'administrador', estado: p.estado, nota: '' }; });
           S.semanas = d[2].map(function (w) { return { n: w.n, titulo: w.titulo, lectura: w.lectura, instrucciones: w.instrucciones, videos: d[3].filter(function (v) { return v.semana === w.n; }).map(function (v) { return { id: v.id, t: v.titulo, url: v.url }; }) }; });
           S.tareas = d[4].map(function (t) { return { id: t.id, titulo: t.titulo, semana: t.semana, limite: R.fechasSemana(t.semana).cierra, peso: +t.peso }; });
           S.foros = d[5].map(function (f) { return { id: f.id, semana: f.semana, titulo: f.titulo, tema: f.tema, conNota: f.con_nota, siempre: f.siempre_abierto, verDespues: f.ver_despues }; });
@@ -63,6 +63,7 @@
       });
     });
   }
+  function rolTexto(u) { return u.admin ? 'Administrador · Profesor sénior' : u.rol === 'profesor' ? 'Profesor' : 'Estudiante'; }
   function traducir(e) {
     var m = (e && e.message) || String(e);
     if (/Invalid login credentials/i.test(m)) return 'El correo o la contraseña no coinciden. Revísalos e inténtalo de nuevo.';
@@ -354,7 +355,7 @@
     var h = '<h1>Personas del curso</h1><p>Las cuentas nuevas llegan como «pendiente» y no ven nada hasta que las actives.</p>', orden = { pendiente: 0, activo: 1, baja: 2 };
     S.usuarios.slice().sort(function (a, b) { return orden[a.estado] - orden[b.estado] || a.nombre.localeCompare(b.nombre); }).forEach(function (x) {
       var et = { pendiente: ['p-atrasada', 'Pendiente'], activo: ['p-calificada', 'Activa'], baja: ['p-vencida', 'De baja'] }[x.estado], yoMismo = x.id === S.usuario;
-      h += '<section class="card"><div class="fila"><div><strong>' + esc(x.nombre) + '</strong><br><small>' + (x.rol === 'profesor' ? 'Profesor' : 'Estudiante') + '</small></div><span class="pill ' + et[0] + '">' + et[1] + '</span></div>';
+      h += '<section class="card"><div class="fila"><div><strong>' + esc(x.nombre) + '</strong><br><small>' + rolTexto(x) + '</small></div><span class="pill ' + et[0] + '">' + et[1] + '</span></div>';
       if (!yoMismo && x.rol !== 'profesor') {
         if (x.estado !== 'activo') h += '<button class="btn" data-a="estado" data-id="' + x.id + '" data-e="activo">Activar</button>';
         else if (p.baja === x.id) h += '<p>¿Dar de baja a ' + esc(x.nombre) + '? Dejará de ver el curso. Sus entregas se conservan.</p><div class="botones"><button class="btn" data-a="estado" data-id="' + x.id + '" data-e="baja">Sí, dar de baja</button><button class="btn sec" data-a="ir" data-n="estudiantes">No</button></div>';
@@ -472,7 +473,7 @@
     if (!V[v.n] || v.n === 'entrada' || v.n === 'espera' || MENU[u.rol].every(function (m) { return m[0] !== (PADRE[v.n] || v.n); })) v = S.vista = { n: u.rol === 'profesor' ? 'panel' : 'inicio' };
     var activo = PADRE[v.n] || v.n;
     nav.hidden = false;
-    ses.innerHTML = '<span><strong>' + esc(u.nombre) + '</strong><br>' + (u.rol === 'profesor' ? 'Profesor' : 'Estudiante') + '</span><button class="btn sec chico" data-a="salir" type="button">Salir</button>';
+    ses.innerHTML = '<span><strong>' + esc(u.nombre) + '</strong><br>' + rolTexto(u) + '</span><button class="btn sec chico" data-a="salir" type="button">Salir</button>';
     document.getElementById('menu').innerHTML = MENU[u.rol].map(function (m) { return '<button data-a="ir" data-n="' + m[0] + '"' + (m[0] === activo ? ' aria-current="page"' : '') + '>' + m[1] + '</button>'; }).join('');
     document.getElementById('vista').innerHTML = V[v.n](v);
     if (v.n === 'entregar') refrescaResena(v.t);
