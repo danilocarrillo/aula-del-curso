@@ -11,7 +11,7 @@ P="psql -X -q -h $D -p $PORT -U postgres -d postgres -v ON_ERROR_STOP=1"
 $P <<'SQL' || exit 2
 create role anon nologin; create role authenticated nologin; create role service_role nologin bypassrls;
 create schema auth;
-create table auth.users (id uuid primary key default gen_random_uuid(), email text unique, raw_user_meta_data jsonb default '{}');
+create table auth.users (id uuid primary key default gen_random_uuid(), email text unique, raw_user_meta_data jsonb default '{}', created_at timestamptz default now());
 create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
 grant usage on schema auth to anon, authenticated;
 create schema storage;
@@ -128,4 +128,21 @@ es "un estudiante no puede hacerse profesor" "$(como $A "update perfiles set rol
 es "el profesor activa una cuenta pendiente" "$(como $PR "update perfiles set estado='activo' where id='$X' returning estado")" "activo"
 es "marcas personales: cada uno ve las suyas" "$(como $A "insert into marcas (clave) values ('2:0'); select count(*) from marcas")/$(como $B 'select count(*) from marcas')" "1/0"
 es "cuenta dada de baja deja de ver el curso" "$($P -q -c "update perfiles set estado='baja' where id='$C'"; como $C 'select (select count(*) from semanas) + (select count(*) from entregas) + (select count(*) from mensajes)')" "0"
+echo "— Solo el administrador administra personas (paso 07)"
+$P -q -f "$BD/07-solo-el-administrador.sql" >/dev/null || { echo "FALLA: el archivo 07 no se pudo aplicar"; exit 1; }
+$P -q -c "insert into auth.users (id, email, raw_user_meta_data) values ('00000000-0000-0000-0000-0000000000ad','dueno@aula.prueba','{\"nombre\":\"Dueño\"}'), ('00000000-0000-0000-0000-0000000000f1','nuevo@aula.prueba','{\"nombre\":\"Nuevo\"}'); update perfiles set rol='administrador', estado='activo' where id='00000000-0000-0000-0000-0000000000ad'"
+AD=00000000-0000-0000-0000-0000000000ad; NV=00000000-0000-0000-0000-0000000000f1
+es "un profesor ya no puede aceptar alumnos" "$(como $PR "update perfiles set estado='activo' where id='$NV' returning 1" | wc -l | tr -d ' ')" "0"
+es "un profesor no puede nombrar profesores" "$(como $PR "update perfiles set rol='profesor' where id='$A' returning 1" | wc -l | tr -d ' ')" "0"
+es "un profesor no puede hacerse administrador" "$(como $PR "update perfiles set rol='administrador' where id=auth.uid() returning 1" | wc -l | tr -d ' ')" "0"
+es "el profesor sigue pudiendo calificar" "$(como $PR "update calificaciones set comentario='ok' where entrega='$EA' returning 1")" "1"
+es "el administrador acepta al alumno nuevo" "$(como $AD "update perfiles set estado='activo' where id='$NV' returning estado")" "activo"
+es "el administrador nombra un profesor" "$(como $AD "update perfiles set rol='profesor' where id='$A' returning rol")" "profesor"
+es "el administrador también ve y califica como profesor" "$(como $AD "select count(*) > 0 from entregas")" "t"
+tiene "no se puede dejar el aula sin administrador" "$(como $AD "update perfiles set rol='profesor' where id=auth.uid()")" "al menos un administrador"
+tiene "ni darse de baja siendo el único" "$(como $AD "update perfiles set estado='baja' where id=auth.uid()")" "al menos un administrador"
+es "el administrador da permiso de administrador a un profesor" "$(como $AD "update perfiles set rol='administrador' where id='$PR' returning rol")" "administrador"
+es "con ese permiso, el otro ya acepta alumnos" "$(como $PR "update perfiles set estado='baja' where id='$NV' returning estado")" "baja"
+es "y habiendo dos, uno sí puede dejar el cargo" "$(como $AD "update perfiles set rol='profesor' where id=auth.uid() returning rol")" "profesor"
+
 echo; echo "$OK correctas, $MAL fallas"; [ $MAL = 0 ]

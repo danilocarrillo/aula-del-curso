@@ -351,15 +351,27 @@
     var p = S.perfil, baja = p.estado === 'baja';
     return '<section class="card entrada"><div class="eyebrow">Aula del curso</div><h1>' + (baja ? 'Cuenta dada de baja' : 'Tu cuenta está creada') + '</h1><p>' + (baja ? 'Esta cuenta ya no tiene acceso al curso. Si crees que es un error, escríbele al profesor.' : 'Hola, ' + esc(p.nombre) + '. Falta un paso: el profesor debe activar tu cuenta. Cuando lo haga, entrarás al curso con este mismo correo y contraseña.') + '</p>' + (baja ? '' : '<button class="btn" data-a="recargar" type="button">Comprobar de nuevo</button>') + '<button class="enlace" data-a="salir" type="button">Salir</button></section>';
   };
+  /* Solo el administrador acepta alumnos, da de baja y nombra profesores. */
+  var ACCIONES = {
+    activar:  { t: 'Aceptar en el curso',            fila: { estado: 'activo' },                          ok: 'Cuenta aceptada. Ya puede entrar al curso.',          q: function (n) { return '¿Aceptar a ' + n + ' en el curso?'; }, directo: true },
+    baja:     { t: 'Dar de baja',                    fila: { estado: 'baja' },                            ok: 'Cuenta dada de baja.',                                q: function (n) { return '¿Dar de baja a ' + n + '? Dejará de ver el curso. Sus entregas se conservan.'; } },
+    profesor: { t: 'Nombrar profesor',               fila: { rol: 'profesor', estado: 'activo' },         ok: 'Ahora es profesor: puede calificar y editar el contenido.', q: function (n) { return '¿Nombrar profesor a ' + n + '? Podrá ver todas las entregas, calificar y editar el contenido. No podrá aceptar alumnos ni nombrar profesores.'; } },
+    admin:    { t: 'Dar permiso de administrador',   fila: { rol: 'administrador', estado: 'activo' },    ok: 'Ahora es administrador: puede aceptar alumnos y nombrar profesores.', q: function (n) { return '¿Dar permiso de administrador a ' + n + '? Tendrá el mismo control que tú: aceptar alumnos, dar de baja y nombrar profesores.'; } },
+    quitarAdmin: { t: 'Quitar permiso de administrador', fila: { rol: 'profesor' },                       ok: 'Ya no es administrador. Sigue siendo profesor.',      q: function (n) { return '¿Quitar el permiso de administrador a ' + n + '? Seguirá siendo profesor.'; } },
+    estudiante: { t: 'Volver a estudiante',          fila: { rol: 'estudiante' },                         ok: 'Volvió a ser estudiante.',                            q: function (n) { return '¿Quitar el rol de profesor a ' + n + '? Dejará de ver las entregas de los demás.'; } }
+  };
   V.estudiantes = function (p) {
-    var h = '<h1>Personas del curso</h1><p>Las cuentas nuevas llegan como «pendiente» y no ven nada hasta que las actives.</p>', orden = { pendiente: 0, activo: 1, baja: 2 };
+    var soyAdmin = yo().admin, orden = { pendiente: 0, activo: 1, baja: 2 };
+    var h = '<h1>Personas del curso</h1><p>' + (soyAdmin ? 'Las cuentas nuevas llegan como «pendiente» y no ven nada hasta que las aceptes. Solo un administrador puede aceptar alumnos y nombrar profesores.' : 'Solo el administrador puede aceptar alumnos, dar de baja y nombrar profesores. Aquí puedes ver quién está en el curso.') + '</p>';
     S.usuarios.slice().sort(function (a, b) { return orden[a.estado] - orden[b.estado] || a.nombre.localeCompare(b.nombre); }).forEach(function (x) {
       var et = { pendiente: ['p-atrasada', 'Pendiente'], activo: ['p-calificada', 'Activa'], baja: ['p-vencida', 'De baja'] }[x.estado], yoMismo = x.id === S.usuario;
-      h += '<section class="card"><div class="fila"><div><strong>' + esc(x.nombre) + '</strong><br><small>' + rolTexto(x) + '</small></div><span class="pill ' + et[0] + '">' + et[1] + '</span></div>';
-      if (!yoMismo && x.rol !== 'profesor') {
-        if (x.estado !== 'activo') h += '<button class="btn" data-a="estado" data-id="' + x.id + '" data-e="activo">Activar</button>';
-        else if (p.baja === x.id) h += '<p>¿Dar de baja a ' + esc(x.nombre) + '? Dejará de ver el curso. Sus entregas se conservan.</p><div class="botones"><button class="btn" data-a="estado" data-id="' + x.id + '" data-e="baja">Sí, dar de baja</button><button class="btn sec" data-a="ir" data-n="estudiantes">No</button></div>';
-        else h += '<button class="btn sec" data-a="pedirBaja" data-id="' + x.id + '">Dar de baja</button>';
+      h += '<section class="card"><div class="fila"><div><strong>' + esc(x.nombre) + '</strong>' + (yoMismo ? ' <small>(tú)</small>' : '') + '<br><small>' + rolTexto(x) + '</small></div><span class="pill ' + et[0] + '">' + et[1] + '</span></div>';
+      if (soyAdmin && !yoMismo) {
+        var acc = x.estado !== 'activo' ? ['activar'] : x.admin ? ['quitarAdmin', 'baja'] : x.rol === 'profesor' ? ['admin', 'estudiante', 'baja'] : ['profesor', 'baja'];
+        if (p.conf && p.conf.id === x.id) {
+          var a = ACCIONES[p.conf.acc];
+          h += '<p>' + esc(a.q(x.nombre)) + '</p><div class="botones"><button class="btn" data-a="aplicarPersona" data-id="' + x.id + '" data-acc="' + p.conf.acc + '">Sí, ' + a.t.toLowerCase() + '</button><button class="btn sec" data-a="ir" data-n="estudiantes">No</button></div>';
+        } else h += '<div class="botones">' + acc.map(function (k, n) { return '<button class="btn' + (n ? ' sec' : '') + '" data-a="' + (ACCIONES[k].directo ? 'aplicarPersona' : 'pedirPersona') + '" data-id="' + x.id + '" data-acc="' + k + '">' + ACCIONES[k].t + '</button>'; }).join('') + '</div>';
       }
       h += '</section>';
     });
@@ -376,6 +388,8 @@
   V.panel = function () {
     var pc = porCalificar().length, n = R.semanaActual(ahora()), d = R.fechasSemana(n), f = S.foros.filter(function (x) { return x.conNota && foroAbierto(x); })[0];
     var h = '<h1>Panel del profesor</h1><div class="dos"><section class="card cifra"><div class="eyebrow">Entregas por calificar</div><p class="grande">' + pc + '</p><button class="btn" data-a="ir" data-n="entregas">Ver entregas</button></section><section class="card cifra"><div class="eyebrow">Notas de foro por revisar</div><p class="grande">' + forosPorPublicar() + '</p><button class="btn sec" data-a="ir" data-n="registro">Abrir el registro</button></section></div>';
+    var pendientes = S.usuarios.filter(function (x) { return x.estado === 'pendiente'; }).length;
+    if (yo().admin && pendientes) h += '<section class="card destacada"><h2>' + pendientes + (pendientes === 1 ? ' persona espera' : ' personas esperan') + ' que la aceptes</h2><button class="btn" data-a="ir" data-n="estudiantes">Ver personas</button></section>';
     h += '<section class="card"><h2>Próximas fechas</h2><div class="fila"><div><strong>Semana ' + n + '</strong> cierra</div><div>' + fecha(d.cierra) + '</div></div>' + (f ? '<div class="fila"><div><strong>' + f.titulo + '</strong>: vence el aporte</div><div>' + fecha(fechasForo(f).aporte) + '</div></div>' : '') + '</section>';
     return h;
   };
@@ -604,8 +618,11 @@
         return pedir(sb.from('semanas').update(fila).eq('n', w.n).select()).then(function () { return Promise.all(vids.map(function (v) { return pedir(sb.from('videos').update({ titulo: v.titulo, url: v.url }).eq('id', v.id).select()); })); });
       }, function () { ir('contenido', {}, 'Semana ' + w.n + ' guardada. Los estudiantes ya ven el cambio.'); });
     },
-    pedirBaja: function (d) { ir('estudiantes', { baja: d.id }); },
-    estado: function (d) { hacer(function () { return pedir(sb.from('perfiles').update({ estado: d.e }).eq('id', d.id).select()); }, function () { ir('estudiantes', {}, d.e === 'activo' ? 'Cuenta activada. Ya puede entrar al curso.' : 'Cuenta dada de baja.'); }); }
+    pedirPersona: function (d) { S.vista = { n: 'estudiantes', conf: { id: d.id, acc: d.acc } }; pintar(); },
+    aplicarPersona: function (d) {
+      var a = ACCIONES[d.acc];
+      hacer(function () { return pedir(sb.from('perfiles').update(a.fila).eq('id', d.id).select()).then(function (f) { if (!f.length) throw new Error('No tienes permiso para hacer eso.'); }); }, function () { ir('estudiantes', {}, a.ok); });
+    }
   };
   /* En la pantalla de calificar, las fotos se muestran a la vista, sin tener que abrirlas una por una. */
   function vistasPrevias(enId) {
