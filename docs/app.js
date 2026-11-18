@@ -345,7 +345,7 @@
     return '<div class="tapa">' +
       '<header class="tapa-b"><span>Expediente n.º 1870–2026</span><span class="tapa-b2">Aula · Danilo Carrillo</span><a href="#acceso">Entrar ↓</a></header>' +
       '<div class="tapa-g"><section class="tapa-h" aria-label="Presentación del curso">' +
-      '<div class="tapa-barras" aria-hidden="true"><i></i><i></i><i></i></div>' +
+      '<div class="tapa-barras" aria-hidden="true"><i></i><i>' + new Array(8).join('<b>★</b>') + '</i><i></i></div>' +
       '<h1 class="tapa-t">Teología del liderazgo <span>en la <mark>misión</mark></span></h1>' +
       '<p class="tapa-s">Estudio de casos. 156 años de mando, 12 semanas para examinarlos.</p>' +
       '<p class="tapa-ano" aria-label="De 1870 a 2026"><span id="ano">' + (portadaVista ? 2026 : 1870) + '</span></p>' +

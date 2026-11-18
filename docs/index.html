@@ -10,17 +10,12 @@
 <style>
 /* Plan: una columna para teléfono; arriba quién entra y el menú; abajo el reloj de prueba. Paleta de la lámina del curso. */
 :root {
-  --tinta: #1f2a37; --acento: #7a3e1d; --fondo: #f7f2ea; --papel: #fffdf9; --linea: #e2d8c8; --suave: #5f6b78;
-  --ok: #2f6b45; --okf: #e6f1e9; --mal: #a3341f; --malf: #f8e7e2; --aviso: #8a5a00; --avisof: #f7edd3; --acentof: #f1e4da; --sobre: #ffffff;
-  --titulos: Lora, Georgia, "Times New Roman", serif; --texto: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --tinta: #f4efe4; --acento: #f5c12e; --fondo: #0d0d0f; --papel: #17171a; --linea: #36363c; --suave: #b9b2a3;
+  --ok: #86d3a2; --okf: #16301f; --mal: #ff8f78; --malf: #3d1a14; --aviso: #f5c12e; --avisof: #2e270f; --acentof: #26210d; --sobre: #0d0d0f;
+  --azul: #1a3d8f; --rojo: #c41e3a;
+  --titulos: Anton, "Arial Narrow", Impact, sans-serif; --texto: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; --ficha: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
 }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  --tinta: #eef1f5; --acento: #e0a57f; --fondo: #161c24; --papel: #1f2732; --linea: #364150; --suave: #a7b2bf;
-  --ok: #86d3a2; --okf: #1f3a2a; --mal: #f3a08f; --malf: #46231c; --aviso: #f0c66b; --avisof: #40331a; --acentof: #3a2a20; --sobre: #161c24; color-scheme: dark } }
-:root[data-theme="dark"] {
-  --tinta: #eef1f5; --acento: #e0a57f; --fondo: #161c24; --papel: #1f2732; --linea: #364150; --suave: #a7b2bf;
-  --ok: #86d3a2; --okf: #1f3a2a; --mal: #f3a08f; --malf: #46231c; --aviso: #f0c66b; --avisof: #40331a; --acentof: #3a2a20; --sobre: #161c24; color-scheme: dark }
-
 body { background: var(--fondo); color: var(--tinta); font-family: var(--texto); font-size: 16px; line-height: 1.5; }
 .borde { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 .ancho { max-width: 860px; margin: 0 auto; }
@@ -130,7 +125,29 @@ label.btn { display: inline-block; text-align: center; } .oculto:focus-visible +
 .vistas-arch { display: flex; flex-direction: column; gap: 10px; } .vistas-arch img { max-width: 100%; height: auto; border: 1px solid var(--linea); border-radius: 8px; }
 #aviso:empty { display: none; } #aviso { margin-bottom: 0; }
 body.ocupado { cursor: progress; } body.ocupado .btn { opacity: .6; pointer-events: none; }
-html, body { margin: 0; }
+html, body { margin: 0; } html { background: #0d0d0f; }
+
+/* Interior del aula: mismo aspecto de la portada (negro, amarillo, azul y rojo; letras de cartel). */
+h1 { font: 400 clamp(32px, 6vw, 50px)/1 var(--titulos); text-transform: uppercase; letter-spacing: .01em; }
+h2 { font: 400 24px/1.1 var(--titulos); text-transform: uppercase; letter-spacing: .015em; margin-bottom: 6px; }
+.cabeza { background: var(--fondo); border-bottom: 0; padding-block: 14px 12px; position: relative; }
+.cabeza::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: linear-gradient(90deg, #f5c12e 0 33.33%, var(--azul) 33.33% 66.66%, var(--rojo) 66.66%); }
+.marca { font-weight: 400; font-size: 26px; line-height: 1; text-transform: uppercase; letter-spacing: .01em; } .marca small { font: 500 10px/1.5 var(--ficha); letter-spacing: .12em; text-transform: uppercase; margin-top: 6px; }
+.entra { font: 500 11px/1.5 var(--ficha); letter-spacing: .08em; text-transform: uppercase; } .entra strong { font: 600 14px var(--texto); letter-spacing: 0; text-transform: none; }
+nav.menu { background: var(--fondo); border-bottom: 1px solid var(--linea); } nav.menu button { font: 500 12px var(--ficha); letter-spacing: .12em; text-transform: uppercase; padding: 15px 10px 12px; }
+nav.menu button[aria-current] { color: var(--sobre); background: var(--acento); border-bottom-color: var(--acento); font-weight: 700; }
+.eyebrow { font: 700 11px var(--ficha); letter-spacing: .18em; }
+.card, .item, .lista-comp, .archivos li, .entrega-texto, .total, .nota-info, .exito, .error, .comp li, .nota-prof, .vistas-arch img, .pantalla { border-radius: 0; }
+.card { border-top: 3px solid var(--tinta); } .card.destacada { border-color: var(--acento); } .sem.actual { border-color: var(--acento); }
+select, input[type=text], input[type=number], input[type=datetime-local], input[type=password], textarea { border-radius: 0; background: #0d0d0f; }
+.btn { border-radius: 0; font-weight: 700; font-size: 14px; letter-spacing: .08em; text-transform: uppercase; } .btn.sec { color: var(--acento); }
+.pill { border-radius: 0; font: 700 10px var(--ficha); letter-spacing: .1em; text-transform: uppercase; padding: 5px 8px; }
+.barra, .barra span { border-radius: 0; } .barra { height: 12px; }
+.numero { font-weight: 400; font-size: 30px; line-height: 1; min-width: 40px; } .grande { font-weight: 400; font-size: 54px; line-height: .95; } .grande small { font-family: var(--texto); }
+.paso-c > strong { font-weight: 400; font-size: 22px; text-transform: uppercase; letter-spacing: .015em; } .marca-paso { border-radius: 0; font-family: var(--ficha); }
+.marca-paso.doc { border-radius: 0; }
+thead th { font: 700 10px var(--ficha); letter-spacing: .12em; }
+footer.prueba { background: var(--fondo); }
 
 /* Portada: el curso como un expediente. Negro, amarillo y tipografía de cartel. */
 html { scroll-behavior: smooth; } @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
@@ -144,9 +161,10 @@ body.portada .vista { display: block; padding: 0; margin: 0; gap: 0; }
 .tapa-b a { color: var(--negro); background: var(--ama); text-decoration: none; padding: 8px 12px; font-weight: 700; letter-spacing: .1em; } .tapa-b a:hover { background: var(--hueso); }
 .tapa-g { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 400px); gap: clamp(24px, 4vw, 64px); align-items: end; padding: clamp(28px, 4vw, 56px) var(--lado) clamp(40px, 5vw, 72px); position: relative; }
 .tapa-h { display: flex; flex-direction: column; gap: 22px; min-width: 0; position: relative; }
-.tapa-barras { display: flex; flex-direction: column; gap: 12px; } .tapa-barras i { display: block; height: clamp(14px, 1.8vw, 26px); background: var(--hueso); transform-origin: left; animation: barra .7s cubic-bezier(.2,.8,.2,1) both; }
+.tapa-barras { display: flex; flex-direction: column; gap: 12px; } .tapa-barras i { display: flex; align-items: center; justify-content: center; gap: clamp(8px, 2.2vw, 30px); --alto: clamp(18px, 2.2vw, 30px); height: var(--alto); background: var(--hueso); transform-origin: left; animation: barra .7s cubic-bezier(.2,.8,.2,1) both; }
 .tapa-barras i:nth-child(1) { width: 62%; background: #f5c12e; } .tapa-barras i:nth-child(2) { width: 88%; background: #1a3d8f; animation-delay: .1s; } .tapa-barras i:nth-child(3) { width: 44%; background: #c41e3a; animation-delay: .2s; }
 @keyframes barra { from { transform: scaleX(0); } }
+.tapa-barras b { color: #fff; font: 400 calc(var(--alto) * .78)/1 Arial, sans-serif; animation: punto .5s .8s both; } @media (prefers-reduced-motion: reduce) { .tapa-barras b { animation: none; } }
 .tapa-t { font: 400 clamp(54px, 10.5vw, 168px)/.92 var(--cartel); text-transform: uppercase; letter-spacing: .005em; color: var(--hueso); margin: 0; text-wrap: initial; } .tapa-t span { display: block; white-space: nowrap; }
 .tapa-t mark { background: var(--ama); color: var(--negro); padding: .16em .12em 0; margin-left: .04em; display: inline-block; line-height: .95; transform: rotate(-2deg); }
 .tapa-s { margin: 0; font: 500 clamp(13px, 1.25vw, 16px)/1.6 var(--ficha); letter-spacing: .08em; text-transform: uppercase; color: #c9c2b3; max-width: 34em; }
