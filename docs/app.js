@@ -337,15 +337,49 @@
     return h + '<section class="card"><h2>Por componente</h2>' + tablaComponentes(it) + '</section>';
   };
 
+  /* Portada del aula: cabecera con emblema, presentación del curso y, debajo, cómo se estudia. */
+  function emblema() {
+    var t = '', i, a;
+    for (i = 0; i < 12; i++) { a = i * Math.PI / 6; t += '<line x1="' + (24 + 17 * Math.sin(a)).toFixed(1) + '" y1="' + (24 - 17 * Math.cos(a)).toFixed(1) + '" x2="' + (24 + 21 * Math.sin(a)).toFixed(1) + '" y2="' + (24 - 21 * Math.cos(a)).toFixed(1) + '"/>'; }
+    return '<svg class="emb" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="23"/><g>' + t + '</g><text x="24" y="31" text-anchor="middle">A</text></svg>';
+  }
+  function portada() {
+    var x0 = 20, x1 = 580, a0 = 1870, a1 = 2026, t = '', y;
+    function px(a) { return (x0 + (a - a0) * (x1 - x0) / (a1 - a0)).toFixed(1); }
+    for (y = a0; y <= 2020; y += 10) t += '<line x1="' + px(y) + '" x2="' + px(y) + '" y1="26" y2="' + (y % 50 === 0 || y === a0 ? 44 : 36) + '"/>';
+    t += '<line x1="' + px(a1) + '" x2="' + px(a1) + '" y1="26" y2="44"/>';
+    var marcas = [1870, 1900, 1950, 2000, 2026].map(function (a) { return '<text x="' + px(a) + '" y="62" text-anchor="' + (a === a0 ? 'start' : a === a1 ? 'end' : 'middle') + '">' + a + '</text>'; }).join('');
+    return '<div class="tapa">' +
+      '<header class="tapa-b"><div class="tapa-w"><a class="tapa-l" href="#acceso">' + emblema() + '<span><strong>Aula del curso</strong><small>Danilo Carrillo · teólogo y autor</small></span></a>' +
+      '<nav aria-label="Portada"><a href="#ruta">Cómo se estudia</a><a href="#acceso" class="tapa-in">Entrar</a></nav></div></header>' +
+      '<div class="tapa-g"><div class="tapa-w"><section class="tapa-h" aria-label="Presentación del curso">' +
+      '<p class="tapa-e">Estudio de casos · 1870–2026</p>' +
+      '<h1 class="tapa-t">Teología del liderazgo en la misión.</h1>' +
+      '<p class="tapa-s">Doce semanas para leer el mando caso por caso: mirar, leer, escribir y conversar.</p>' +
+      '<svg class="vara" viewBox="0 0 600 70" role="img" aria-label="Línea del tiempo de 1870 a 2026"><line class="vara-l" x1="' + x0 + '" x2="' + x1 + '" y1="26" y2="26"/><g class="vara-t">' + t + '</g><g class="vara-n">' + marcas + '</g><circle class="vara-p" cx="' + px(a0) + '" cy="26" r="5"/><circle class="vara-p fin" cx="' + px(a1) + '" cy="26" r="5"/></svg>' +
+      '</section>';
+  }
+  function portadaPie() {
+    var pasos = [
+      ['Mira el caso', 'Cada semana abre con su caso en video.'],
+      ['Lee', 'La lectura de la semana, que marcas al terminarla.'],
+      ['Escribe', 'Una reseña de 600 a 800 palabras: la escribes en el aula o la subes como documento o foto.'],
+      ['Conversa', 'En las semanas con foro, publicas tu aporte y respondes a dos compañeros.']
+    ].map(function (p, i) { return '<li><span class="tapa-n">' + (i + 1) + '</span><h3>' + p[0] + '</h3><p>' + p[1] + '</p></li>'; }).join('');
+    return '</div></div>' +
+      '<section class="tapa-ruta" id="ruta"><div class="tapa-w"><p class="eyebrow">La ruta de cada semana</p><h2>Cuatro pasos, siempre en el mismo orden.</h2><ol>' + pasos + '</ol>' +
+      '<p class="tapa-dato">Un curso de <b>doce semanas</b>, con <b>diez reseñas</b> y <b>cuatro foros</b>, que recorre el liderazgo de <b>1870 a 2026</b>.</p></div></section>' +
+      '<footer class="tapa-pie"><div class="tapa-w"><span>Aula del curso · Danilo Carrillo</span><a href="https://www.danilocarrillo.com/inicio">danilocarrillo.com</a></div></footer></div>';
+  }
   V.entrada = function (p) {
     var crear = p.modo === 'crear';
-    var h = '<section class="card entrada"><div class="eyebrow">Aula del curso</div><h1>' + (crear ? 'Crear tu cuenta' : 'Entrar') + '</h1><p>' + (crear ? 'Después de crearla, el profesor la activa y ya podrás entrar al curso.' : 'Escribe tu correo y tu contraseña.') + '</p>';
+    var h = portada() + '<section class="card entrada" id="acceso"><div class="eyebrow">' + (crear ? 'Primera vez' : 'Acceso al aula') + '</div><h2 class="entrada-t">' + (crear ? 'Crear tu cuenta' : 'Entrar') + '</h2><p>' + (crear ? 'Después de crearla, el profesor la activa y ya podrás entrar al curso.' : 'Escribe tu correo y tu contraseña.') + '</p>';
     if (crear) h += '<label for="nombre">Nombre y apellido</label><input type="text" id="nombre" autocomplete="name" value="' + esc(p.nombre || '') + '">';
     h += '<label for="correo">Correo</label><input type="text" id="correo" inputmode="email" autocomplete="username" value="' + esc(p.correo || '') + '"><label for="clave">Contraseña' + (crear ? ' <small>(al menos 8 caracteres)</small>' : '') + '</label><input type="password" id="clave" autocomplete="' + (crear ? 'new-password' : 'current-password') + '">';
     h += '<button class="btn" data-a="' + (crear ? 'registrar' : 'entrar') + '" type="button">' + (crear ? 'Crear cuenta' : 'Entrar') + '</button>';
     h += '<button class="enlace" data-a="modoEntrada" data-m="' + (crear ? 'entrar' : 'crear') + '" type="button">' + (crear ? 'Ya tengo cuenta: entrar' : 'No tengo cuenta: crear una') + '</button>';
     if (!crear) h += '<button class="enlace" data-a="olvide" type="button">Olvidé mi contraseña</button>' + (p.olvide ? '<p class="nota-info">Escríbele al profesor para que te ayude a recuperarla. La recuperación por correo llega en la Fase 2.</p>' : '');
-    return h + '</section>';
+    return h + '</section>' + portadaPie();
   };
   V.espera = function () {
     var p = S.perfil, baja = p.estado === 'baja';
@@ -481,6 +515,7 @@
   function pintar(msg) {
     var ses = document.getElementById('sesion'), nav = document.querySelector('nav.menu'), v = S.vista;
     aviso(msg || '');
+    document.body.classList.toggle('portada', !S.usuario);
     if (!S.usuario) { ses.innerHTML = ''; nav.hidden = true; if (v.n !== 'entrada') v = S.vista = { n: 'entrada' }; document.getElementById('vista').innerHTML = V.entrada(v); return; }
     if (S.perfil.estado !== 'activo') { ses.innerHTML = ''; nav.hidden = true; S.vista = { n: 'espera' }; document.getElementById('vista').innerHTML = V.espera(); return; }
     var u = yo();
