@@ -337,39 +337,50 @@
     return h + '<section class="card"><h2>Por componente</h2>' + tablaComponentes(it) + '</section>';
   };
 
-  /* Portada del aula: cabecera con emblema, presentación del curso y, debajo, cómo se estudia. */
-  function emblema() {
-    var t = '', i, a;
-    for (i = 0; i < 12; i++) { a = i * Math.PI / 6; t += '<line x1="' + (24 + 17 * Math.sin(a)).toFixed(1) + '" y1="' + (24 - 17 * Math.cos(a)).toFixed(1) + '" x2="' + (24 + 21 * Math.sin(a)).toFixed(1) + '" y2="' + (24 - 21 * Math.cos(a)).toFixed(1) + '"/>'; }
-    return '<svg class="emb" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="23"/><g>' + t + '</g><text x="24" y="31" text-anchor="middle">A</text></svg>';
-  }
+  /* Portada del aula: el curso presentado como un expediente que se abre (1870-2026). */
+  var portadaVista = false;
   function portada() {
-    var x0 = 20, x1 = 580, a0 = 1870, a1 = 2026, t = '', y;
-    function px(a) { return (x0 + (a - a0) * (x1 - x0) / (a1 - a0)).toFixed(1); }
-    for (y = a0; y <= 2020; y += 10) t += '<line x1="' + px(y) + '" x2="' + px(y) + '" y1="26" y2="' + (y % 50 === 0 || y === a0 ? 44 : 36) + '"/>';
-    t += '<line x1="' + px(a1) + '" x2="' + px(a1) + '" y1="26" y2="44"/>';
-    var marcas = [1870, 1900, 1950, 2000, 2026].map(function (a) { return '<text x="' + px(a) + '" y="62" text-anchor="' + (a === a0 ? 'start' : a === a1 ? 'end' : 'middle') + '">' + a + '</text>'; }).join('');
+    var cinta = '', i;
+    for (i = 0; i < 6; i++) cinta += '<span>Mira</span><i>✕</i><span>Lee</span><i>✕</i><span>Escribe</span><i>✕</i><span>Conversa</span><i>✕</i>';
     return '<div class="tapa">' +
-      '<header class="tapa-b"><div class="tapa-w"><a class="tapa-l" href="#acceso">' + emblema() + '<span><strong>Aula del curso</strong><small>Danilo Carrillo · teólogo y autor</small></span></a>' +
-      '<nav aria-label="Portada"><a href="#ruta">Cómo se estudia</a><a href="#acceso" class="tapa-in">Entrar</a></nav></div></header>' +
-      '<div class="tapa-g"><div class="tapa-w"><section class="tapa-h" aria-label="Presentación del curso">' +
-      '<p class="tapa-e">Estudio de casos · 1870–2026</p>' +
-      '<h1 class="tapa-t">Teología del liderazgo en la misión.</h1>' +
-      '<p class="tapa-s">Doce semanas para leer el mando caso por caso: mirar, leer, escribir y conversar.</p>' +
-      '<svg class="vara" viewBox="0 0 600 70" role="img" aria-label="Línea del tiempo de 1870 a 2026"><line class="vara-l" x1="' + x0 + '" x2="' + x1 + '" y1="26" y2="26"/><g class="vara-t">' + t + '</g><g class="vara-n">' + marcas + '</g><circle class="vara-p" cx="' + px(a0) + '" cy="26" r="5"/><circle class="vara-p fin" cx="' + px(a1) + '" cy="26" r="5"/></svg>' +
+      '<header class="tapa-b"><span>Expediente n.º 1870–2026</span><span class="tapa-b2">Aula · Danilo Carrillo</span><a href="#acceso">Entrar ↓</a></header>' +
+      '<div class="tapa-g"><section class="tapa-h" aria-label="Presentación del curso">' +
+      '<div class="tapa-barras" aria-hidden="true"><i></i><i></i><i></i></div>' +
+      '<h1 class="tapa-t">Teología del liderazgo <span>en la <mark>misión</mark></span></h1>' +
+      '<p class="tapa-s">Estudio de casos. 156 años de mando, 12 semanas para examinarlos.</p>' +
+      '<p class="tapa-ano" aria-label="De 1870 a 2026"><span id="ano">' + (portadaVista ? 2026 : 1870) + '</span></p>' +
       '</section>';
   }
   function portadaPie() {
+    var cinta = '', i;
+    for (i = 0; i < 6; i++) cinta += '<span>Mira</span><i>✕</i><span>Lee</span><i>✕</i><span>Escribe</span><i>✕</i><span>Conversa</span><i>✕</i>';
     var pasos = [
       ['Mira el caso', 'Cada semana abre con su caso en video.'],
       ['Lee', 'La lectura de la semana, que marcas al terminarla.'],
       ['Escribe', 'Una reseña de 600 a 800 palabras: la escribes en el aula o la subes como documento o foto.'],
       ['Conversa', 'En las semanas con foro, publicas tu aporte y respondes a dos compañeros.']
-    ].map(function (p, i) { return '<li><span class="tapa-n">' + (i + 1) + '</span><h3>' + p[0] + '</h3><p>' + p[1] + '</p></li>'; }).join('');
-    return '</div></div>' +
-      '<section class="tapa-ruta" id="ruta"><div class="tapa-w"><p class="eyebrow">La ruta de cada semana</p><h2>Cuatro pasos, siempre en el mismo orden.</h2><ol>' + pasos + '</ol>' +
-      '<p class="tapa-dato">Un curso de <b>doce semanas</b>, con <b>diez reseñas</b> y <b>cuatro foros</b>, que recorre el liderazgo de <b>1870 a 2026</b>.</p></div></section>' +
-      '<footer class="tapa-pie"><div class="tapa-w"><span>Aula del curso · Danilo Carrillo</span><a href="https://www.danilocarrillo.com/inicio">danilocarrillo.com</a></div></footer></div>';
+    ].map(function (p, i) { return '<li><span class="tapa-n">0' + (i + 1) + '</span><h3>' + p[0] + '</h3><p>' + p[1] + '</p></li>'; }).join('');
+    return '</div>' +
+      '<div class="tapa-cinta" aria-hidden="true"><div>' + cinta + '</div></div>' +
+      '<section class="tapa-ruta" id="ruta"><p class="tapa-k">La ruta de cada semana</p><h2>Cuatro pasos. Siempre en el mismo orden.</h2><ol>' + pasos + '</ol>' +
+      '<p class="tapa-dato"><b>12</b> semanas <b>10</b> reseñas <b>4</b> foros</p></section>' +
+      '<footer class="tapa-pie"><span>Aula del curso · Danilo Carrillo, teólogo y autor</span><a href="https://www.danilocarrillo.com/inicio">danilocarrillo.com</a></footer></div>';
+  }
+  /* El año corre de 1870 a 2026 la primera vez que se ve la portada. */
+  function animarPortada() {
+    var el = document.getElementById('ano');
+    if (!el || portadaVista) return;
+    portadaVista = true;
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) { el.textContent = 2026; return; }
+    var t0 = null, dur = 2600;
+    function paso(t) {
+      if (!el.isConnected) return;
+      if (t0 === null) t0 = t;
+      var k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+      el.textContent = Math.round(1870 + 156 * e);
+      if (k < 1) requestAnimationFrame(paso);
+    }
+    setTimeout(function () { requestAnimationFrame(paso); }, 500);
   }
   V.entrada = function (p) {
     var crear = p.modo === 'crear';
@@ -516,7 +527,7 @@
     var ses = document.getElementById('sesion'), nav = document.querySelector('nav.menu'), v = S.vista;
     aviso(msg || '');
     document.body.classList.toggle('portada', !S.usuario);
-    if (!S.usuario) { ses.innerHTML = ''; nav.hidden = true; if (v.n !== 'entrada') v = S.vista = { n: 'entrada' }; document.getElementById('vista').innerHTML = V.entrada(v); return; }
+    if (!S.usuario) { ses.innerHTML = ''; nav.hidden = true; if (v.n !== 'entrada') v = S.vista = { n: 'entrada' }; document.getElementById('vista').innerHTML = V.entrada(v); animarPortada(); return; }
     if (S.perfil.estado !== 'activo') { ses.innerHTML = ''; nav.hidden = true; S.vista = { n: 'espera' }; document.getElementById('vista').innerHTML = V.espera(); return; }
     var u = yo();
     if (!V[v.n] || v.n === 'entrada' || v.n === 'espera' || MENU[u.rol].every(function (m) { return m[0] !== (PADRE[v.n] || v.n); })) v = S.vista = { n: u.rol === 'profesor' ? 'panel' : 'inicio' };
